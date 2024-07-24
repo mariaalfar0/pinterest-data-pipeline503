@@ -58,9 +58,51 @@ def run_infinite_post_data_loop():
             for row in user_selected_row:
                 user_result = dict(row._mapping)
             
+            print("Pin result:")
             print(pin_result)
+            print("Geo result:")
             print(geo_result)
+            print("User result:")
             print(user_result)
+
+
+pin_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.pin"
+pin_df = {}
+pin_data = json.dumps({
+    "records": [
+        {      
+        "value": {"index": pin_df["index"], "unique_id": pin_df["unique_id"], "title": pin_df["title"], 
+                  "description": pin_df["description"], "poster_name": pin_df["poster_name"],
+                  "follower_count": pin_df["follower_count"], "tag_list": pin_df["tag_list"],
+                  "is_image_or_video": pin_df["is_image_or_video"], "image_src": pin_df["image_src"], 
+                  "downloaded": pin_df["downloaded"], "save_location": pin_df["save_location"]}
+        }
+    ]
+})
+
+geo_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.geo"
+geo_df = {}
+geo_data = json.dumps({
+    "records": [
+        {      
+        "value": {"ind": geo_df["ind"], "timestamp": geo_df["timestamp"], 
+                  "latitude": geo_df["latitude"], "longitude": geo_df["longitude"], 
+                  "country": geo_df["country"]}
+        }
+    ]
+})
+
+user_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.user"
+user_df = {}
+user_data = json.dumps({
+    "records": [
+        {      
+        "value": {"ind": user_df["ind"], "first_name": user_df["first_name"], 
+                  "last_name": user_df["last_name"], "age": user_df["age"], 
+                  "date-joined": user_df["date_joined"]}
+        }
+    ]
+})
 
 
 if __name__ == "__main__":
