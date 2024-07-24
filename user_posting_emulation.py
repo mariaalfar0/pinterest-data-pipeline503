@@ -8,6 +8,8 @@ import sqlalchemy
 from sqlalchemy import text
 import yaml
 import pymysql
+import datetime
+import pandas as pd
 
 
 random.seed(100)
@@ -30,7 +32,6 @@ class AWSDBConnector:
 
 
 new_connector = AWSDBConnector()
-
 
 def run_infinite_post_data_loop():
     while True:
@@ -65,49 +66,74 @@ def run_infinite_post_data_loop():
             print("User result:")
             print(user_result)
 
+def send_to_api():
+    engine = new_connector.create_db_connector()
+    
+    with engine.connect() as connection:
+            pin_df = connection.execute(text(f"SELECT * FROM pinterest_data"))
+            pin_df = pd.DataFrame(pin_df)
+            pin_df = pin_df.astype({'index': 'int'})
+            pin_df = pin_df.to_json(orient="split")
 
-pin_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.pin"
-pin_df = {}
-pin_data = json.dumps({
-    "records": [
-        {      
-        "value": {"index": pin_df["index"], "unique_id": pin_df["unique_id"], "title": pin_df["title"], 
-                  "description": pin_df["description"], "poster_name": pin_df["poster_name"],
-                  "follower_count": pin_df["follower_count"], "tag_list": pin_df["tag_list"],
-                  "is_image_or_video": pin_df["is_image_or_video"], "image_src": pin_df["image_src"], 
-                  "downloaded": pin_df["downloaded"], "save_location": pin_df["save_location"]}
-        }
-    ]
-})
+            geo_df = connection.execute(text(f"SELECT * FROM geolocation_data"))
+            geo_df = pd.DataFrame(geo_df)
+            geo_df = geo_df.to_json(orient="split")
 
-geo_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.geo"
-geo_df = {}
-geo_data = json.dumps({
-    "records": [
-        {      
-        "value": {"ind": geo_df["ind"], "timestamp": geo_df["timestamp"], 
-                  "latitude": geo_df["latitude"], "longitude": geo_df["longitude"], 
-                  "country": geo_df["country"]}
-        }
-    ]
-})
+            user_df = connection.execute(text(f"SELECT * FROM user_data"))
+            user_df = pd.DataFrame(user_df)
+            user_df = user_df.to_json(orient="split")
+                
+    pin_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.pin"
 
-user_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.user"
-user_df = {}
-user_data = json.dumps({
-    "records": [
-        {      
-        "value": {"ind": user_df["ind"], "first_name": user_df["first_name"], 
-                  "last_name": user_df["last_name"], "age": user_df["age"], 
-                  "date-joined": user_df["date_joined"]}
-        }
-    ]
-})
+    pin_data_struct = json.dumps({
+        "records": [
+            {      
+            "value": {"index": pin_df["index"], "unique_id": pin_df["unique_id"], "title": pin_df["title"], 
+                    "description": pin_df["description"], "poster_name": pin_df["poster_name"],
+                    "follower_count": pin_df["follower_count"], "tag_list": pin_df["tag_list"],
+                    "is_image_or_video": pin_df["is_image_or_video"], "image_src": pin_df["image_src"], 
+                    "downloaded": pin_df["downloaded"], "save_location": pin_df["save_location"]}
+            }
+        ]
+    })
 
+    headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
+    pin_response = requests.request("POST", pin_invoke_url, headers=headers, data=pin_data_struct)
+    print("Status code of pin_response: " + pin_response.status_code)
+
+    geo_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.geo"
+
+    geo_data_struct = json.dumps({
+        "records": [
+            {      
+            "value": {"ind": geo_df["ind"], "timestamp": geo_df["timestamp"], 
+                      "latitude": geo_df["latitude"], "longitude": geo_df["longitude"], 
+                      "country": geo_df["country"]}
+            }
+        ]
+    })
+
+    geo_response = requests.request("POST", geo_invoke_url, headers=headers, data=geo_data_struct)
+    print("Status code of geo_response: " + geo_response.status_code)
+
+    user_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.user"
+    user_data_struct = json.dumps({
+        "records": [
+            {      
+            "value": {"ind": user_df["ind"], "first_name": user_df["first_name"], 
+                      "last_name": user_df["last_name"], "age": user_df["age"], 
+                      "date-joined": user_df["date_joined"]}
+            }
+        ]
+    })
+
+    user_response = requests.request("POST", user_invoke_url, headers=headers, data=user_data_struct)
+    print("Status code of user_response: " + user_response.status_code)
 
 if __name__ == "__main__":
-    run_infinite_post_data_loop()
-    print('Working')
+    #run_infinite_post_data_loop()
+    #print('Working')
+    send_to_api()
     
     
 
