@@ -33,107 +33,64 @@ class AWSDBConnector:
 
 new_connector = AWSDBConnector()
 
-def run_infinite_post_data_loop():
-    while True:
-        sleep(random.randrange(0, 2))
-        random_row = random.randint(0, 11000)
-        engine = new_connector.create_db_connector()
-
-        with engine.connect() as connection:
-
-            pin_string = text(f"SELECT * FROM pinterest_data LIMIT {random_row}, 1")
-            pin_selected_row = connection.execute(pin_string)
-            
-            for row in pin_selected_row:
-                pin_result = dict(row._mapping)
-
-            geo_string = text(f"SELECT * FROM geolocation_data LIMIT {random_row}, 1")
-            geo_selected_row = connection.execute(geo_string)
-            
-            for row in geo_selected_row:
-                geo_result = dict(row._mapping)
-
-            user_string = text(f"SELECT * FROM user_data LIMIT {random_row}, 1")
-            user_selected_row = connection.execute(user_string)
-            
-            for row in user_selected_row:
-                user_result = dict(row._mapping)
-            
-            print("Pin result:")
-            print(pin_result)
-            print("Geo result:")
-            print(geo_result)
-            print("User result:")
-            print(user_result)
-
-def send_to_api():
-    engine = new_connector.create_db_connector()
+def extract_data(engine, table_name, counter):
     
     with engine.connect() as connection:
-            pin_df = connection.execute(text(f"SELECT * FROM pinterest_data"))
-            pin_df = pd.DataFrame(pin_df)
-            pin_df = pin_df.astype({'index': 'int'})
-            pin_df = pin_df.to_json(orient="split")
-
-            geo_df = connection.execute(text(f"SELECT * FROM geolocation_data"))
-            geo_df = pd.DataFrame(geo_df)
-            geo_df = geo_df.to_json(orient="split")
-
-            user_df = connection.execute(text(f"SELECT * FROM user_data"))
-            user_df = pd.DataFrame(user_df)
-            user_df = user_df.to_json(orient="split")
-                
-    pin_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.pin"
-
-    pin_data_struct = json.dumps({
+        selected_string = text(f"SELECT * FROM {table_name} LIMIT {counter}, 1")
+        selected_row = connection.execute(selected_string)
+            
+        for row in selected_row:
+            result = dict(row._mapping)
+        
+        return result
+    
+def post_to_api(invoke_url, data):
+    payload = json.dumps({
         "records": [
             {      
-            "value": {"index": pin_df["index"], "unique_id": pin_df["unique_id"], "title": pin_df["title"], 
-                    "description": pin_df["description"], "poster_name": pin_df["poster_name"],
-                    "follower_count": pin_df["follower_count"], "tag_list": pin_df["tag_list"],
-                    "is_image_or_video": pin_df["is_image_or_video"], "image_src": pin_df["image_src"], 
-                    "downloaded": pin_df["downloaded"], "save_location": pin_df["save_location"]}
+            "value": data
             }
         ]
-    })
+    }, default = str)
 
     headers = {'Content-Type': 'application/vnd.kafka.json.v2+json'}
-    pin_response = requests.request("POST", pin_invoke_url, headers=headers, data=pin_data_struct)
-    print("Status code of pin_response: " + pin_response.status_code)
+    response = requests.request("POST", invoke_url, headers=headers, data=payload)
+    print("Status code of response: ")
+    print(response.status_code)
 
-    geo_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.geo"
+def query_db(engine, query):
+    with engine.connect() as connection:
+        query = text(f"{query}")
+        run_query = connection.execute(query)
+        
+        for row in run_query:
+            result = dict(row._mapping)
+        
+        return result
 
-    geo_data_struct = json.dumps({
-        "records": [
-            {      
-            "value": {"ind": geo_df["ind"], "timestamp": geo_df["timestamp"], 
-                      "latitude": geo_df["latitude"], "longitude": geo_df["longitude"], 
-                      "country": geo_df["country"]}
-            }
-        ]
-    })
+def send_to_api():
+    counter = 10492
+    engine = new_connector.create_db_connector()
 
-    geo_response = requests.request("POST", geo_invoke_url, headers=headers, data=geo_data_struct)
-    print("Status code of geo_response: " + geo_response.status_code)
+    row_count = query_db(engine, "SELECT COUNT(*) AS count FROM pinterest_data")
+    max_row_count = row_count["count"]
+    
+    while counter <= max_row_count:
+        pin_result = extract_data(engine, "pinterest_data", counter)
+        geo_result = extract_data(engine, "geolocation_data", counter)
+        user_result = extract_data(engine, "user_data", counter)
+ 
+        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.pin", pin_result)
+        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.geo", geo_result)
+        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.user", user_result)
 
-    user_invoke_url = "https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.user"
-    user_data_struct = json.dumps({
-        "records": [
-            {      
-            "value": {"ind": user_df["ind"], "first_name": user_df["first_name"], 
-                      "last_name": user_df["last_name"], "age": user_df["age"], 
-                      "date-joined": user_df["date_joined"]}
-            }
-        ]
-    })
-
-    user_response = requests.request("POST", user_invoke_url, headers=headers, data=user_data_struct)
-    print("Status code of user_response: " + user_response.status_code)
+        counter = counter + 1
+        print(f"{counter} out of {max_row_count}")     
+       
 
 if __name__ == "__main__":
-    #run_infinite_post_data_loop()
-    #print('Working')
     send_to_api()
+
     
     
 
