@@ -44,6 +44,11 @@ In databricks, run kinesis_integration notebook
  ┣ user_posting_emulation.py
  ┗ user_posting_emulation_streaming.py
 
+### Architecture of the project
+
+![CloudPinterestPipeline](https://github.com/user-attachments/assets/6a9df0ba-2989-47bd-a677-f5f3a9c7a0e7)
+
+
 ### License information
 
 N/A
