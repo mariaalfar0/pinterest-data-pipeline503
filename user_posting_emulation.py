@@ -15,9 +15,13 @@ import pandas as pd
 random.seed(100)
 
 
+# This class serves as a connector to an AWS database.
 class AWSDBConnector:
 
     def __init__(self):
+        """
+        The function initializes database connection parameters by loading credentials from a YAML file.
+        """
         with open('db_creds.yaml') as f:
             db_creds = yaml.load(f, Loader=yaml.SafeLoader)
         self.HOST = db_creds['RDS_HOST']
@@ -27,6 +31,10 @@ class AWSDBConnector:
         self.PORT = 3306
         
     def create_db_connector(self):
+        """
+        The function creates a database connector using SQLAlchemy to connect to a MySQL database.
+        :return: An SQLAlchemy engine object for connecting to a MySQL database is being returned.
+        """
         engine = sqlalchemy.create_engine(f"mysql+pymysql://{self.USER}:{self.PASSWORD}@{self.HOST}:{self.PORT}/{self.DATABASE}?charset=utf8mb4")
         return engine
 
@@ -34,6 +42,23 @@ class AWSDBConnector:
 new_connector = AWSDBConnector()
 
 def extract_data(engine, table_name, counter):
+    """
+    This function extracts data from a specified table in a database using the provided SQLAlchemy
+    engine, limiting the number of rows returned by the specified counter.
+    
+    :param engine: The `engine` parameter is typically an instance of a database engine, such as
+    SQLAlchemy's `create_engine` function. It represents the connection to the database where the data
+    is stored
+    :param table_name: The `table_name` parameter in the `extract_data` function is used to specify the
+    name of the table from which you want to extract data
+    :param counter: The `counter` parameter in the `extract_data` function is used to specify the
+    starting point for selecting rows from the database table. It determines the offset at which the
+    query will start retrieving rows from the table
+    :return: The function `extract_data` returns a dictionary containing the data from the specified
+    table in the database. The data is retrieved by executing a SQL query to select a single row from
+    the table with a specified limit (counter). The function returns the data of the selected row as a
+    dictionary.
+    """
     
     with engine.connect() as connection:
         selected_string = text(f"SELECT * FROM {table_name} LIMIT {counter}, 1")
@@ -45,6 +70,17 @@ def extract_data(engine, table_name, counter):
         return result
     
 def post_to_api(invoke_url, data):
+    """
+    The function `post_to_api` sends a POST request to a specified URL with data formatted for a Kafka
+    API.
+    
+    :param invoke_url: The `invoke_url` parameter in the `post_to_api` function is the URL where you
+    want to send a POST request with the data. This URL should be the endpoint of the API you are trying
+    to interact with. Make sure to provide the complete URL including the protocol (e.g., https
+    :param data: It seems like you were about to provide some information for the `data` parameter in
+    the `post_to_api` function. Could you please provide the specific data that you want to send in the
+    API request?
+    """
     payload = json.dumps({
         "records": [
             {      
@@ -59,6 +95,21 @@ def post_to_api(invoke_url, data):
     print(response.status_code)
 
 def query_db(engine, query):
+    """
+    The `query_db` function executes a SQL query using the provided engine and returns the result as a
+    dictionary.
+    
+    :param engine: The `engine` parameter in the `query_db` function is typically an SQLAlchemy engine
+    object that represents a connection to a database. This engine object is used to establish a
+    connection to the database and execute queries
+    :param query: The `query` parameter in the `query_db` function is a SQL query string that you want
+    to execute on the database using the provided `engine`. This query can be any valid SQL statement
+    such as SELECT, INSERT, UPDATE, DELETE, etc
+    :return: The function `query_db` is returning a dictionary containing the result of the query
+    executed on the database. The result is obtained by iterating over the rows returned by the query
+    and converting each row into a dictionary using the `_mapping` attribute. The last row's dictionary
+    is returned as the final result.
+    """
     with engine.connect() as connection:
         query = text(f"{query}")
         run_query = connection.execute(query)
@@ -69,6 +120,10 @@ def query_db(engine, query):
         return result
 
 def send_to_api():
+    """
+    This Python function sends data from different tables in a database to specific API endpoints in a
+    loop.
+    """
     counter = 10492
     engine = new_connector.create_db_connector()
 

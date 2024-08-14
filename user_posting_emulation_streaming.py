@@ -44,14 +44,8 @@ def extract_data(engine, table_name, counter):
         
         return result
     
-def post_to_api(invoke_url, data):
-    payload = json.dumps({
-        "records": [
-            {      
-            "value": data
-            }
-        ]
-    }, default = str)
+def post_to_api(invoke_url, stream_name, data):
+    payload = json.dumps({"StreamName": stream_name,"Data": data, "PartitionKey": "partition=1"}, default = str)
 
     headers = {'Content-Type': 'application/json'}
     response = requests.request("PUT", invoke_url, headers=headers, data=payload)
@@ -69,7 +63,7 @@ def query_db(engine, query):
         return result
 
 def send_to_api():
-    counter = 0
+    counter = 3194
     engine = new_connector.create_db_connector()
 
     row_count = query_db(engine, "SELECT COUNT(*) AS count FROM pinterest_data")
@@ -80,9 +74,9 @@ def send_to_api():
         geo_result = extract_data(engine, "geolocation_data", counter)
         user_result = extract_data(engine, "user_data", counter)
 
-        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/streams/streaming-0affe2a66fdf-pin/records", pin_result)
-        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/streams/streaming-0affe2a66fdf-geo/records", geo_result)
-        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/streams/streaming-0affe2a66fdf-user/records", user_result)
+        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/streams/streaming-0affe2a66fdf-pin/record", "streaming-0affe2a66fdf-pin", pin_result)
+        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/streams/streaming-0affe2a66fdf-geo/record", "streaming-0affe2a66fdf-geo", geo_result)
+        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/streams/streaming-0affe2a66fdf-user/record", "streaming-0affe2a66fdf-user", user_result)
 
         counter = counter + 1
         print(f"{counter} out of {max_row_count}")     
