@@ -1,19 +1,9 @@
-import requests
-from time import sleep
-import random
-from multiprocessing import Process
-import boto3
+import db_endpoints
 import json
+import requests
 import sqlalchemy
+from db_utils import AWSDBConnector
 from sqlalchemy import text
-import yaml
-import pymysql
-import datetime
-import pandas as pd
-
-
-random.seed(100)
-
 
 # This class serves as a connector to an AWS database.
 class AWSDBConnector:
@@ -47,17 +37,17 @@ def extract_data(engine, table_name, counter):
     engine, limiting the number of rows returned by the specified counter.
     
     :param engine: The `engine` parameter is typically an instance of a database engine, such as
-    SQLAlchemy's `create_engine` function. It represents the connection to the database where the data
-    is stored
+        SQLAlchemy's `create_engine` function. It represents the connection to the database where the data
+        is stored
     :param table_name: The `table_name` parameter in the `extract_data` function is used to specify the
-    name of the table from which you want to extract data
+        name of the table from which you want to extract data
     :param counter: The `counter` parameter in the `extract_data` function is used to specify the
-    starting point for selecting rows from the database table. It determines the offset at which the
-    query will start retrieving rows from the table
+        starting point for selecting rows from the database table. It determines the offset at which the
+        query will start retrieving rows from the table
     :return: The function `extract_data` returns a dictionary containing the data from the specified
-    table in the database. The data is retrieved by executing a SQL query to select a single row from
-    the table with a specified limit (counter). The function returns the data of the selected row as a
-    dictionary.
+        table in the database. The data is retrieved by executing a SQL query to select a single row from
+        the table with a specified limit (counter). The function returns the data of the selected row as a
+        dictionary.
     """
     
     with engine.connect() as connection:
@@ -74,12 +64,11 @@ def post_to_api(invoke_url, data):
     The function `post_to_api` sends a POST request to a specified URL with data formatted for a Kafka
     API.
     
-    :param invoke_url: The `invoke_url` parameter in the `post_to_api` function is the URL where you
-    want to send a POST request with the data. This URL should be the endpoint of the API you are trying
-    to interact with. Make sure to provide the complete URL including the protocol (e.g., https
-    :param data: It seems like you were about to provide some information for the `data` parameter in
-    the `post_to_api` function. Could you please provide the specific data that you want to send in the
-    API request?
+    :param invoke_url: The `invoke_url` parameter is the URL where you want to send a POST request with 
+        the data. This URL should be the endpoint of the API you are trying to interact with.
+    :param data: The `data` parameter is the information that you want to send to the API. It could be 
+        any data that you need to post to the specified API endpoint. This data
+        will be included in the payload of the request as part of the JSON body.
     """
     payload = json.dumps({
         "records": [
@@ -100,15 +89,13 @@ def query_db(engine, query):
     dictionary.
     
     :param engine: The `engine` parameter in the `query_db` function is typically an SQLAlchemy engine
-    object that represents a connection to a database. This engine object is used to establish a
-    connection to the database and execute queries
-    :param query: The `query` parameter in the `query_db` function is a SQL query string that you want
-    to execute on the database using the provided `engine`. This query can be any valid SQL statement
-    such as SELECT, INSERT, UPDATE, DELETE, etc
-    :return: The function `query_db` is returning a dictionary containing the result of the query
-    executed on the database. The result is obtained by iterating over the rows returned by the query
-    and converting each row into a dictionary using the `_mapping` attribute. The last row's dictionary
-    is returned as the final result.
+        object that represents a connection to a database. This engine object is used to establish a
+        connection to the database and execute queries
+    :param query: The `query_db` function takes two parameters: `engine` and `query`. The `engine`
+        parameter is the database engine object used to establish a connection to the database. The `query`
+        parameter is the SQL query that you want to execute on the database using the provided engine
+    :return: The function `query_db` is returning a dictionary `result` that contains the data from the
+        last row of the query result.
     """
     with engine.connect() as connection:
         query = text(f"{query}")
@@ -135,9 +122,9 @@ def send_to_api():
         geo_result = extract_data(engine, "geolocation_data", counter)
         user_result = extract_data(engine, "user_data", counter)
  
-        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.pin", pin_result)
-        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.geo", geo_result)
-        post_to_api("https://ez41mcd5n4.execute-api.us-east-1.amazonaws.com/0affe2a66fdf-stage/topics/0affe2a66fdf.user", user_result)
+        post_to_api(db_endpoints.BATCH_API_PIN_ENDPOINT, pin_result)
+        post_to_api(db_endpoints.BATCH_API_GEO_ENDPOINT, geo_result)
+        post_to_api(db_endpoints.BATCH_API_USER_ENDPOINT, user_result)
 
         counter = counter + 1
         print(f"{counter} out of {max_row_count}")     
