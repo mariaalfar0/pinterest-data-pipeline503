@@ -2,6 +2,7 @@ import db_endpoints
 import json
 import requests
 import sqlalchemy
+import yaml
 from db_utils import AWSDBConnector
 from sqlalchemy import text
 
